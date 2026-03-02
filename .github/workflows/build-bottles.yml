@@ -1,0 +1,131 @@
+name: Build and upload bottles
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-bottles:
+    name: Build bottle on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-14, macos-15]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Build bottle
+        run: |
+          brew install --build-bottle ./Formula/directx-shader-compiler.rb
+          brew bottle --json ./Formula/directx-shader-compiler.rb
+
+      - name: Upload bottle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottle-${{ matrix.os }}
+          path: |
+            *.tar.gz
+            *.json
+
+  upload-bottles:
+    name: Upload bottles to release
+    needs: build-bottles
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all bottles
+        uses: actions/download-artifact@v4
+        with:
+          path: bottles
+          pattern: bottle-*
+
+      - name: Upload bottles to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bottles/**/*.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-formula:
+    name: Update formula with bottle SHAs
+    needs: [build-bottles, upload-bottles]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all bottles
+        uses: actions/download-artifact@v4
+        with:
+          path: bottles
+          pattern: bottle-*
+
+      - name: Install Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Update formula with bottle blocks
+        run: |
+          # Find all bottle JSON files and process them
+          BOTTLE_ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          
+          # Start building the bottle block
+          BOTTLE_BLOCK="  bottle do\\n"
+          BOTTLE_BLOCK+="    root_url \"${BOTTLE_ROOT_URL}\"\\n"
+          BOTTLE_BLOCK+="    rebuild 1\\n"
+          
+          # Process each bottle JSON
+          for json_file in bottles/**/*.json; do
+            if [ -f "$json_file" ]; then
+              # Extract platform and sha256 from JSON
+              platform=$(jq -r '.[keys[0]].formula.pkg_version' "$json_file" 2>/dev/null || echo "")
+              if [ -n "$platform" ]; then
+                sha256=$(jq -r '.[keys[0]].formula.sha256' "$json_file" 2>/dev/null || echo "")
+                platform_name=$(basename "$json_file" .json | sed 's/directx-shader-compiler--//' | sed 's/.json$//')
+                
+                # Map GitHub runner names to Homebrew platform names
+                case "$platform_name" in
+                  *arm64*|*aarch64*)
+                    platform_key="arm64_ventura" ;;
+                  *x86_64*|*amd64*)
+                    platform_key="ventura" ;;
+                  *)
+                    platform_key="ventura" ;;
+                esac
+                
+                BOTTLE_BLOCK+="    sha256 cellar: :any, ${platform_key}: \"${sha256}\"\\n"
+              fi
+            fi
+          done
+          
+          BOTTLE_BLOCK+="  end"
+          
+          # Insert bottle block after license line
+          sed -i "/^  license \"LLVM\"/a\\\\n${BOTTLE_BLOCK}" Formula/directx-shader-compiler.rb
+          
+          cat Formula/directx-shader-compiler.rb
+
+      - name: Commit and push updated formula
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/directx-shader-compiler.rb
+          git commit -m "Update bottles for ${{ github.ref_name }}" || echo "No changes to commit"
+          git push
