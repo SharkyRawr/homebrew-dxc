@@ -80,6 +80,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
 
       - name: Download all bottles
         uses: actions/download-artifact@v4
@@ -88,33 +89,51 @@ jobs:
           pattern: bottle-*
 
       - name: Update formula with bottle blocks
+        env:
+          BOTTLE_ROOT_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
         run: |
-          # Find all bottle JSON files and process them
-          BOTTLE_ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
-          
-          # Start building the bottle block
-          BOTTLE_BLOCK="  bottle do\n"
-          BOTTLE_BLOCK+="    root_url \"${BOTTLE_ROOT_URL}\"\n"
-          BOTTLE_BLOCK+="    rebuild 1\n"
-          
-          # Process each bottle JSON
-          for json_file in bottles/**/*.json; do
-            if [ -f "$json_file" ]; then
-              sha256=$(jq -r '.[keys[0]].formula.sha256' "$json_file" 2>/dev/null || echo "")
-              platform=$(jq -r '.[keys[0]].formula.bottle' "$json_file" 2>/dev/null || echo "")
-              
-              if [ -n "$sha256" ] && [ -n "$platform" ]; then
-                BOTTLE_BLOCK+="    sha256 cellar: :any, ${platform}: \"${sha256}\"\n"
-              fi
-            fi
-          done
-          
-          BOTTLE_BLOCK+="  end"
-          
-          # Insert bottle block after license line
-          sed -i "/^  license \"LLVM\"/a\\n${BOTTLE_BLOCK}" Formula/directx-shader-compiler.rb
-          
-          cat Formula/directx-shader-compiler.rb
+          python3 - <<'EOF'
+          import json, re, glob, os
+
+          root_url = os.environ["BOTTLE_ROOT_URL"]
+          bottle_entries = []
+          rebuild = 0
+
+          for json_file in sorted(glob.glob("bottles/**/*.json", recursive=True)):
+              with open(json_file) as f:
+                  data = json.load(f)
+              formula_key = next(iter(data))
+              bottle = data[formula_key]["formula"]["bottle"]
+              rebuild = bottle.get("rebuild", 0)
+              for platform, info in bottle["tags"].items():
+                  sha256 = info["sha256"]
+                  cellar = info.get("cellar", ":any")
+                  bottle_entries.append(f'    sha256 cellar: {cellar}, {platform}: "{sha256}"')
+
+          rebuild_line = f"    rebuild {rebuild}\n" if rebuild > 0 else ""
+          sha256_lines = "\n".join(bottle_entries)
+          bottle_block = (
+              f'  bottle do\n'
+              f'    root_url "{root_url}"\n'
+              f'{rebuild_line}'
+              f'{sha256_lines}\n'
+              f'  end'
+          )
+
+          with open("Formula/directx-shader-compiler.rb") as f:
+              content = f.read()
+
+          # Remove any existing bottle block
+          content = re.sub(r'\n\n  bottle do\n.*?\n  end', '', content, flags=re.DOTALL)
+
+          # Insert after license line
+          content = re.sub(r'(  license "[^"]*")', rf'\1\n\n{bottle_block}', content)
+
+          with open("Formula/directx-shader-compiler.rb", "w") as f:
+              f.write(content)
+
+          print(open("Formula/directx-shader-compiler.rb").read())
+          EOF
 
       - name: Commit and push updated formula
         run: |
@@ -122,4 +141,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/directx-shader-compiler.rb
           git commit -m "Update bottles for ${{ github.ref_name }}" || echo "No changes to commit"
-          git push
+          git push origin main
