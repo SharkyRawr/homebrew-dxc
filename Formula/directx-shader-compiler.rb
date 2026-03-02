@@ -41,7 +41,6 @@ class DirectxShaderCompiler < Formula
 
     system "cmake", "-B", builddir, "-S", ".", *args
     system "cmake", "--build", builddir, "--parallel"
-    system "cmake", "--install", builddir
 
     # Install binaries to bin
     bin.install Dir["#{builddir}/bin/dxc*"]

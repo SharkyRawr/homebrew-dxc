@@ -24,17 +24,17 @@ jobs:
 
       - name: Create tap and build bottle
         run: |
-          # Create the tap directory structure
-          mkdir -p $(brew --repo)/Library/Taps/sharkyrawr/homebrew-dxc
-          cp -r . $(brew --repo)/Library/Taps/sharkyrawr/homebrew-dxc/
-          
+          # setup-homebrew symlinks $GITHUB_WORKSPACE to the tap directory for
+          # homebrew-* repos. Only create the symlink if it doesn't exist yet.
+          BREW_TAPS_DIR="$(brew --repo)/Library/Taps/sharkyrawr"
+          mkdir -p "$BREW_TAPS_DIR"
+          if [ ! -e "$BREW_TAPS_DIR/homebrew-dxc" ]; then
+            ln -sf "$GITHUB_WORKSPACE" "$BREW_TAPS_DIR/homebrew-dxc"
+          fi
+
           # Build the bottle from the tap
           brew install --build-bottle sharkyrawr/dxc/directx-shader-compiler
           brew bottle --json sharkyrawr/dxc/directx-shader-compiler
-          
-          # Copy bottles back to workspace
-          cp *.tar.gz $GITHUB_WORKSPACE/ || true
-          cp *.json $GITHUB_WORKSPACE/ || true
 
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
