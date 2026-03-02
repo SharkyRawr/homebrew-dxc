@@ -35,6 +35,7 @@ class DirectxShaderCompiler < Formula
       llvm = Formula["llvm"]
       ENV["CC"] = "#{llvm.opt_bin}/clang"
       ENV["CXX"] = "#{llvm.opt_bin}/clang++"
+      ENV.append "CXXFLAGS", "-Wno-invalid-specialization"
       args << "-DLLVM_ENABLE_LLD=ON"
     end
 
