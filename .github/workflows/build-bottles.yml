@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14, macos-15]
+        os: [macos-14, macos-15]
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -22,10 +22,19 @@ jobs:
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Build bottle
+      - name: Create tap and build bottle
         run: |
-          brew install --build-bottle ./Formula/directx-shader-compiler.rb
-          brew bottle --json ./Formula/directx-shader-compiler.rb
+          # Create the tap directory structure
+          mkdir -p $(brew --repo)/Library/Taps/sharkyrawr/homebrew-dxc
+          cp -r . $(brew --repo)/Library/Taps/sharkyrawr/homebrew-dxc/
+          
+          # Build the bottle from the tap
+          brew install --build-bottle sharkyrawr/dxc/directx-shader-compiler
+          brew bottle --json sharkyrawr/dxc/directx-shader-compiler
+          
+          # Copy bottles back to workspace
+          cp *.tar.gz $GITHUB_WORKSPACE/ || true
+          cp *.json $GITHUB_WORKSPACE/ || true
 
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
@@ -78,39 +87,24 @@ jobs:
           path: bottles
           pattern: bottle-*
 
-      - name: Install Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
       - name: Update formula with bottle blocks
         run: |
           # Find all bottle JSON files and process them
           BOTTLE_ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
           
           # Start building the bottle block
-          BOTTLE_BLOCK="  bottle do\\n"
-          BOTTLE_BLOCK+="    root_url \"${BOTTLE_ROOT_URL}\"\\n"
-          BOTTLE_BLOCK+="    rebuild 1\\n"
+          BOTTLE_BLOCK="  bottle do\n"
+          BOTTLE_BLOCK+="    root_url \"${BOTTLE_ROOT_URL}\"\n"
+          BOTTLE_BLOCK+="    rebuild 1\n"
           
           # Process each bottle JSON
           for json_file in bottles/**/*.json; do
             if [ -f "$json_file" ]; then
-              # Extract platform and sha256 from JSON
-              platform=$(jq -r '.[keys[0]].formula.pkg_version' "$json_file" 2>/dev/null || echo "")
-              if [ -n "$platform" ]; then
-                sha256=$(jq -r '.[keys[0]].formula.sha256' "$json_file" 2>/dev/null || echo "")
-                platform_name=$(basename "$json_file" .json | sed 's/directx-shader-compiler--//' | sed 's/.json$//')
-                
-                # Map GitHub runner names to Homebrew platform names
-                case "$platform_name" in
-                  *arm64*|*aarch64*)
-                    platform_key="arm64_ventura" ;;
-                  *x86_64*|*amd64*)
-                    platform_key="ventura" ;;
-                  *)
-                    platform_key="ventura" ;;
-                esac
-                
-                BOTTLE_BLOCK+="    sha256 cellar: :any, ${platform_key}: \"${sha256}\"\\n"
+              sha256=$(jq -r '.[keys[0]].formula.sha256' "$json_file" 2>/dev/null || echo "")
+              platform=$(jq -r '.[keys[0]].formula.bottle' "$json_file" 2>/dev/null || echo "")
+              
+              if [ -n "$sha256" ] && [ -n "$platform" ]; then
+                BOTTLE_BLOCK+="    sha256 cellar: :any, ${platform}: \"${sha256}\"\n"
               fi
             fi
           done
@@ -118,7 +112,7 @@ jobs:
           BOTTLE_BLOCK+="  end"
           
           # Insert bottle block after license line
-          sed -i "/^  license \"LLVM\"/a\\\\n${BOTTLE_BLOCK}" Formula/directx-shader-compiler.rb
+          sed -i "/^  license \"LLVM\"/a\\n${BOTTLE_BLOCK}" Formula/directx-shader-compiler.rb
           
           cat Formula/directx-shader-compiler.rb
 
