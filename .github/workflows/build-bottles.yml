@@ -102,13 +102,15 @@ jobs:
       - name: Merge bottle JSON into formula
         run: |
           ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
-          brew bottle --merge --write --no-commit --root-url "$ROOT_URL" \
-            $(find bottles -name "*.json" | sort)
+          json_files=()
+          while IFS= read -r f; do json_files+=("$f"); done < <(find bottles -name "*.json" | sort)
+          brew bottle --merge --write --no-commit --root-url "$ROOT_URL" "${json_files[@]}"
 
       - name: Commit and push updated formula
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git add Formula/directx-shader-compiler.rb
           git commit -m "Update bottles for ${{ github.ref_name }}" || echo "No changes to commit"
           git push origin main
