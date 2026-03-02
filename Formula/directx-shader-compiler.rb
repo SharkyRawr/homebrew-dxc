@@ -6,6 +6,11 @@ class DirectxShaderCompiler < Formula
       revision: "21d28f727ad395b59394815ef76012e432f7e4e5"
   license "LLVM"
 
+  bottle do
+    rebuild 1
+    sha256 cellar: :any, arm64_tahoe: "fa3b4534bf76c25c4880d2f45c196b187f61be717e5aa4f4d7b52e16c832ed5b"
+  end
+
   depends_on "cmake" => :build
   depends_on "ninja" => :build
   depends_on "python@3.12" => :build
