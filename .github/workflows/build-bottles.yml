@@ -72,7 +72,7 @@ jobs:
   update-formula:
     name: Update formula with bottle SHAs
     needs: [build-bottles, upload-bottles]
-    runs-on: ubuntu-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
@@ -82,58 +82,28 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
 
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
       - name: Download all bottles
         uses: actions/download-artifact@v4
         with:
           path: bottles
           pattern: bottle-*
 
-      - name: Update formula with bottle blocks
-        env:
-          BOTTLE_ROOT_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+      - name: Register tap
         run: |
-          python3 - <<'EOF'
-          import json, re, glob, os
+          BREW_TAPS_DIR="$(brew --repo)/Library/Taps/sharkyrawr"
+          mkdir -p "$BREW_TAPS_DIR"
+          if [ ! -e "$BREW_TAPS_DIR/homebrew-dxc" ]; then
+            ln -sf "$GITHUB_WORKSPACE" "$BREW_TAPS_DIR/homebrew-dxc"
+          fi
 
-          root_url = os.environ["BOTTLE_ROOT_URL"]
-          bottle_entries = []
-          rebuild = 0
-
-          for json_file in sorted(glob.glob("bottles/**/*.json", recursive=True)):
-              with open(json_file) as f:
-                  data = json.load(f)
-              formula_key = next(iter(data))
-              bottle = data[formula_key]["formula"]["bottle"]
-              rebuild = bottle.get("rebuild", 0)
-              for platform, info in bottle["tags"].items():
-                  sha256 = info["sha256"]
-                  cellar = info.get("cellar", ":any")
-                  bottle_entries.append(f'    sha256 cellar: {cellar}, {platform}: "{sha256}"')
-
-          rebuild_line = f"    rebuild {rebuild}\n" if rebuild > 0 else ""
-          sha256_lines = "\n".join(bottle_entries)
-          bottle_block = (
-              f'  bottle do\n'
-              f'    root_url "{root_url}"\n'
-              f'{rebuild_line}'
-              f'{sha256_lines}\n'
-              f'  end'
-          )
-
-          with open("Formula/directx-shader-compiler.rb") as f:
-              content = f.read()
-
-          # Remove any existing bottle block
-          content = re.sub(r'\n\n  bottle do\n.*?\n  end', '', content, flags=re.DOTALL)
-
-          # Insert after license line
-          content = re.sub(r'(  license "[^"]*")', rf'\1\n\n{bottle_block}', content)
-
-          with open("Formula/directx-shader-compiler.rb", "w") as f:
-              f.write(content)
-
-          print(open("Formula/directx-shader-compiler.rb").read())
-          EOF
+      - name: Merge bottle JSON into formula
+        run: |
+          ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          brew bottle --merge --write --no-commit --root-url "$ROOT_URL" \
+            $(find bottles -name "*.json" | sort)
 
       - name: Commit and push updated formula
         run: |
