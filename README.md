@@ -48,4 +48,4 @@ brew untap SharkyRawr/dxc
 
 ## License
 
-The DirectX Shader Compiler is distributed under the University of Illinois Open Source License (LLVM License).
+The DirectX Shader Compiler is distributed under the University of Illinois/NCSA Open Source License (LLVM License).
