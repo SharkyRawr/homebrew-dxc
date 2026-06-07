@@ -7,8 +7,8 @@ class DirectxShaderCompiler < Formula
   license "LLVM"
 
   bottle do
-    rebuild 1
-    sha256 cellar: :any, arm64_tahoe: "fa3b4534bf76c25c4880d2f45c196b187f61be717e5aa4f4d7b52e16c832ed5b"
+    rebuild 2
+    sha256 cellar: :any, arm64_tahoe: "e39e7bd6018d683bd49047c72be0d80fae93ff94c825aa59650d6225f0cde8c1"
   end
 
   depends_on "cmake" => :build
