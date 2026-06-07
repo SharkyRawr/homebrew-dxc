@@ -7,6 +7,7 @@ class DirectxShaderCompiler < Formula
   license "LLVM"
 
   bottle do
+    root_url "https://github.com/SharkyRawr/homebrew-dxc/releases/download/v1.10.2605.24"
     rebuild 2
     sha256 cellar: :any, arm64_tahoe: "e39e7bd6018d683bd49047c72be0d80fae93ff94c825aa59650d6225f0cde8c1"
   end

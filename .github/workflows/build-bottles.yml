@@ -63,6 +63,15 @@ jobs:
           path: bottles
           pattern: bottle-*
 
+      - name: Normalize bottle asset names
+        run: |
+          while IFS= read -r bottle; do
+            normalized="${bottle/--/-}"
+            if [ "$normalized" != "$bottle" ]; then
+              mv "$bottle" "$normalized"
+            fi
+          done < <(find bottles -name "*.tar.gz" | sort)
+
       - name: Upload bottles to release
         uses: softprops/action-gh-release@v2
         with:
@@ -104,10 +113,12 @@ jobs:
 
       - name: Merge bottle JSON into formula
         run: |
-          ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+          export ROOT_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
           json_files=()
           while IFS= read -r f; do json_files+=("$f"); done < <(find bottles -name "*.json" | sort)
           brew bottle --merge --write --no-commit --root-url "$ROOT_URL" "${json_files[@]}"
+          ruby -0777 -i -pe 'root_url = ENV.fetch("ROOT_URL"); $_ = $_.sub(/(  bottle do\n)(?!    root_url )/, "\\1    root_url \"#{root_url}\"\n")' Formula/directx-shader-compiler.rb
+          grep -F "root_url \"$ROOT_URL\"" Formula/directx-shader-compiler.rb
 
       - name: Commit and push updated formula
         run: |
