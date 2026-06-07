@@ -2,8 +2,8 @@ class DirectxShaderCompiler < Formula
   desc "DirectX Shader Compiler based on LLVM/Clang"
   homepage "https://github.com/microsoft/DirectXShaderCompiler"
   url "https://github.com/microsoft/DirectXShaderCompiler.git",
-      tag:      "v1.9.2602",
-      revision: "21d28f727ad395b59394815ef76012e432f7e4e5"
+      tag:      "v1.10.2605.24",
+      revision: "c1e1fc784b0fb40e333c809b8206fe576ea89be8"
   license "LLVM"
 
   bottle do

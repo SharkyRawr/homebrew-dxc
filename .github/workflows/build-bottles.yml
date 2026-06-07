@@ -14,6 +14,9 @@ jobs:
       matrix:
         os: [macos-26]
       fail-fast: false
+    env:
+      # @todo fix me
+      HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
