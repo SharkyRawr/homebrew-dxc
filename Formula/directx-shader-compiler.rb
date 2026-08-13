@@ -6,6 +6,12 @@ class DirectxShaderCompiler < Formula
       revision: "c4d8f4f99aa221da58cd540bf2099a2889632ab6"
   license "LLVM"
 
+  bottle do
+    root_url "https://github.com/SharkyRawr/homebrew-dxc/releases/download/v1.10.2605.37"
+    rebuild 1
+    sha256 cellar: :any, arm64_tahoe: "557832263349f4b2a2667081f9762f7b16b6c7e5cc5ea9b5c4a03825c41d05fc"
+  end
+
 
   depends_on "cmake" => :build
   depends_on "ninja" => :build
