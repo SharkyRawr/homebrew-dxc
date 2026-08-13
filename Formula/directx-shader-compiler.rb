@@ -2,15 +2,10 @@ class DirectxShaderCompiler < Formula
   desc "DirectX Shader Compiler based on LLVM/Clang"
   homepage "https://github.com/microsoft/DirectXShaderCompiler"
   url "https://github.com/microsoft/DirectXShaderCompiler.git",
-      tag:      "v1.10.2605.24",
-      revision: "c1e1fc784b0fb40e333c809b8206fe576ea89be8"
+      tag:      "v1.10.2605.37",
+      revision: "c4d8f4f99aa221da58cd540bf2099a2889632ab6"
   license "LLVM"
 
-  bottle do
-    root_url "https://github.com/SharkyRawr/homebrew-dxc/releases/download/v1.10.2605.24"
-    rebuild 2
-    sha256 cellar: :any, arm64_tahoe: "e39e7bd6018d683bd49047c72be0d80fae93ff94c825aa59650d6225f0cde8c1"
-  end
 
   depends_on "cmake" => :build
   depends_on "ninja" => :build
