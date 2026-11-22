@@ -14,16 +14,13 @@ jobs:
       matrix:
         os: [macos-26]
       fail-fast: false
-    env:
-      # @todo fix me
-      HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@2026.11.14.1
 
       - name: Create tap and build bottle
         run: |
@@ -36,11 +33,12 @@ jobs:
           fi
 
           # Build the bottle from the tap
+          brew trust --formula sharkyrawr/dxc/directx-shader-compiler
           brew install --build-bottle sharkyrawr/dxc/directx-shader-compiler
           brew bottle --json sharkyrawr/dxc/directx-shader-compiler
 
       - name: Upload bottle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: bottle-${{ matrix.os }}
           path: |
@@ -50,15 +48,15 @@ jobs:
   upload-bottles:
     name: Upload bottles to release
     needs: build-bottles
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Download all bottles
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8.0.2
         with:
           path: bottles
           pattern: bottle-*
@@ -73,7 +71,7 @@ jobs:
           done < <(find bottles -name "*.tar.gz" | sort)
 
       - name: Upload bottles to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3.0.4
         with:
           files: bottles/**/*.tar.gz
           draft: false
@@ -89,16 +87,16 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@2026.11.14.1
 
       - name: Download all bottles
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8.0.2
         with:
           path: bottles
           pattern: bottle-*
@@ -110,6 +108,7 @@ jobs:
           if [ ! -e "$BREW_TAPS_DIR/homebrew-dxc" ]; then
             ln -sf "$GITHUB_WORKSPACE" "$BREW_TAPS_DIR/homebrew-dxc"
           fi
+          brew trust --formula sharkyrawr/dxc/directx-shader-compiler
 
       - name: Merge bottle JSON into formula
         run: |
