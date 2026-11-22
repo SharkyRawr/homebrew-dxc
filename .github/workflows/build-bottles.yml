@@ -23,7 +23,7 @@ jobs:
 
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Create tap and build bottle
         run: |
@@ -95,7 +95,7 @@ jobs:
           ref: main
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Download all bottles
         uses: actions/download-artifact@v4
